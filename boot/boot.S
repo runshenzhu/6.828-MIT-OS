@@ -25,6 +25,8 @@ start:
   #   For backwards compatibility with the earliest PCs, physical
   #   address line 20 is tied low, so that addresses higher than
   #   1MB wrap around to zero by default.  This code undoes this.
+
+# enable
 seta20.1:
   inb     $0x64,%al               # Wait for not busy
   testb   $0x2,%al
@@ -33,6 +35,7 @@ seta20.1:
   movb    $0xd1,%al               # 0xd1 -> port 0x64
   outb    %al,$0x64
 
+# write
 seta20.2:
   inb     $0x64,%al               # Wait for not busy
   testb   $0x2,%al
