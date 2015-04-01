@@ -24,6 +24,7 @@ struct Command {
 static struct Command commands[] = {
 	{ "help", "Display this list of commands", mon_help },
 	{ "kerninfo", "Display information about the kernel", mon_kerninfo },
+	{ "backtrace", "Display a listing of function call frames", mon_backtrace},
 };
 #define NCOMMANDS (sizeof(commands)/sizeof(commands[0]))
 
@@ -54,11 +55,46 @@ mon_kerninfo(int argc, char **argv, struct Trapframe *tf)
 		ROUNDUP(end - entry, 1024) / 1024);
 	return 0;
 }
+/*
+push   %ebp
+mov    %esp,%ebp
+
+so we have following:
+
+while(ebp != NULL) {
+	pre_ebp = *ebp;
+	ebp = pre_ebp;
+	do something
+}
+
+print format:
+Stack backtrace:
+  ebp f010ff78  eip f01008ae  args 00000001 f010ff8c 00000000 f0110580 00000000
+         kern/monitor.c:143: monitor+106
+  ebp f010ffd8  eip f0100193  args 00000000 00001aac 00000660 00000000 00000000
+         kern/init.c:49: i386_init+59
+  ebp f010fff8  eip f010003d  args 00000000 00000000 0000ffff 10cf9a00 0000ffff
+         kern/entry.S:70: <unknown>+0
+*/
 
 int
 mon_backtrace(int argc, char **argv, struct Trapframe *tf)
 {
 	// Your code here.
+	__asm__ __volatile__("":::"memory");	// prevent reordering
+	uint32_t *addr = (uint32_t *)read_ebp();
+	cprintf("Stack backtrace:\n");
+	while(addr != NULL){
+		struct Eipdebuginfo info;
+		debuginfo_eip(*(addr + 1), &info);
+		
+		cprintf("  ebp %08x eip %08x args %08x %08x %08x %08x %08x\n", \
+			addr, *(addr + 1), *(addr + 2), *(addr + 3), *(addr + 4), *(addr + 5), *(addr + 6));
+
+		cprintf("        %s:%d: %.*s+%d\n", \
+			info.eip_file, info.eip_line, info.eip_fn_namelen, info.eip_fn_name, *(addr + 1) - info.eip_fn_addr);
+		addr = (uint32_t *) (*addr);
+	}
 	return 0;
 }
 
