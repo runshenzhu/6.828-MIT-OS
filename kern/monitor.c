@@ -25,6 +25,7 @@ static struct Command commands[] = {
 	{ "help", "Display this list of commands", mon_help },
 	{ "kerninfo", "Display information about the kernel", mon_kerninfo },
 	{ "backtrace", "Display a listing of function call frames", mon_backtrace},
+	{ "showmappings", "Display VM to PM mapping", mon_showmappings},
 };
 #define NCOMMANDS (sizeof(commands)/sizeof(commands[0]))
 
@@ -97,8 +98,56 @@ mon_backtrace(int argc, char **argv, struct Trapframe *tf)
 	}
 	return 0;
 }
+/**
+00000000ef000000-00000000ef021000 0000000000021000 ur-
+00000000ef7bc000-00000000ef7be000 0000000000002000 ur-
+00000000ef7bf000-00000000ef800000 0000000000041000 ur-
+00000000efff8000-0000000100000000 0000000010008000 -rw
+**/
+static void mon_showmappings_helper(size_t start, size_t end) {
+	extern pte_t *pgdir_walk(pde_t *pgdir, const void *va, int create);
+	extern pde_t *kern_pgdir;
 
+	for(; start < end; start += PGSIZE) {
+		cprintf("%08x--%08x:   ", start, start + PGSIZE);
+		pte_t *ptep = pgdir_walk(kern_pgdir, (void *)start, 0);
+		
+		if(!ptep) {
+			cprintf("NOT MAPPED\n");
+			break;
+		}
 
+		cprintf("%08x  ", PTE_ADDR(*ptep));
+		char flags[] = {'-', 'r', '-', '\0'};
+		if(*ptep & PTE_U) flags[0] = 'u';
+		if(*ptep & PTE_W) flags[2] = 'w';
+		cprintf("%s\n", flags);
+	}
+}
+
+int mon_showmappings(int argc, char **argv, struct Trapframe *tf) {
+	assert(argc == 3);
+	if(argc != 3) {
+		cprintf("error in args nums, it should be 2 number!!\n");
+		return 0;
+	}
+
+	long arg_1 = strtol(argv[1], 0, 0);
+	long arg_2 = strtol(argv[2], 0, 0);
+	
+	size_t start = (arg_1 < arg_2) ? (size_t)arg_1 : (size_t)arg_2;
+	size_t end = (arg_1 < arg_2) ? (size_t)(arg_2 - 1) : (size_t)(arg_1 - 1);
+	if(end > 0xFFFFFFFF) {
+		cprintf("Illegal parameter, out of range\n");
+		return 0;
+	}
+	if(start != ROUNDUP(start, PGSIZE) || end != ROUNDUP(end, PGSIZE) - 1){
+		cprintf("Illegal parameter, not aligned\n");
+		return 0;
+	}
+	mon_showmappings_helper(start, end);
+	return 0;
+}
 
 /***** Kernel monitor command interpreter *****/
 
