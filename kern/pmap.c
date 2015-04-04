@@ -153,7 +153,8 @@ mem_init(void)
 	// array.  'npages' is the number of physical pages in memory.  Use memset
 	// to initialize all fields of each struct PageInfo to 0.
 	// Your code goes here:
-	pages = (struct PageInfo *) boot_alloc(npages * sizeof(struct PageInfo));
+	size_t pages_size = npages * sizeof(struct PageInfo);
+	pages = (struct PageInfo *) boot_alloc(pages_size);
 	memset(pages, 0, npages * sizeof(struct PageInfo));
 
 	//////////////////////////////////////////////////////////////////////
@@ -178,6 +179,8 @@ mem_init(void)
 	//      (ie. perm = PTE_U | PTE_P)
 	//    - pages itself -- kernel RW, user NONE
 	// Your code goes here:
+	/* boot_map_region(pde_t *pgdir, uintptr_t va, size_t size, physaddr_t pa, int perm) */
+	boot_map_region(kern_pgdir, UPAGES, ROUNDUP(pages_size, PGSIZE), PADDR(pages), PTE_U);
 
 	//////////////////////////////////////////////////////////////////////
 	// Use the physical memory that 'bootstack' refers to as the kernel
@@ -190,6 +193,7 @@ mem_init(void)
 	//       overwrite memory.  Known as a "guard page".
 	//     Permissions: kernel RW, user NONE
 	// Your code goes here:
+	boot_map_region(kern_pgdir, KSTACKTOP-KSTKSIZE, KSTKSIZE, PADDR(bootstack), PTE_W);
 
 	//////////////////////////////////////////////////////////////////////
 	// Map all of physical memory at KERNBASE.
@@ -199,10 +203,10 @@ mem_init(void)
 	// we just set up the mapping anyway.
 	// Permissions: kernel RW, user NONE
 	// Your code goes here:
+	boot_map_region(kern_pgdir, KERNBASE, ROUNDUP(((2^32) - KERNBASE), PGSIZE), 0, PTE_W);
 
 	// Check that the initial page directory has been set up correctly.
 	check_kern_pgdir();
-
 	// Switch from the minimal entry page directory to the full kern_pgdir
 	// page table we just created.	Our instruction pointer should be
 	// somewhere between KERNBASE and KERNBASE+4MB right now, which is
@@ -432,11 +436,19 @@ boot_map_region(pde_t *pgdir, uintptr_t va, size_t size, physaddr_t pa, int perm
 
 	for(; size; size -= PGSIZE) {
 		pte_t *pte = pgdir_walk(pgdir, (void *)va, true);
+		assert(pte != NULL);
 		*pte = pa | perm | PTE_P;
 
-		assert(va <= 0xFFFFFFFF - PGSIZE);
+		/* we should also change pde's perm*/
+		pde_t *pde = pgdir + PDX(va); 
+		*pde = *pde | perm;
+		//assert(va <= 0xFFFFFFFF - PGSIZE);
+		if( va > 0xFFFFFFFF - PGSIZE) {
+			return;
+		}
 		pa += PGSIZE;
 		va += PGSIZE;
+
 	}
 
 }
@@ -483,6 +495,9 @@ page_insert(pde_t *pgdir, struct PageInfo *pp, void *va, int perm)
 		assert( *ptep == 0 );
 		assert(pp->pp_ref >= 0);
 		pp->pp_ref++;
+	}
+	else {
+		tlb_invalidate(pgdir, va);
 	}
 
 	
