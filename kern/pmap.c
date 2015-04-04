@@ -392,7 +392,7 @@ pgdir_walk(pde_t *pgdir, const void *va, int create)
 	// Fill this function in
 	pde_t *pde = pgdir + PDX(va);
 	pte_t *ptep = NULL;
-	if(pde & PTE_P) { /* present */
+	if(*pde & PTE_P) { /* present */
 		ptep = KADDR(PTE_ADDR(*pde));
 		return ptep + PTX(va);
 	}
@@ -402,11 +402,14 @@ pgdir_walk(pde_t *pgdir, const void *va, int create)
 	}
 
 	struct PageInfo *new_ptep = page_alloc(ALLOC_ZERO);
-	assert( new_ptep!= NULL );
-
+	if(!new_ptep){
+		return NULL;
+	}
+	//assert( new_ptep != NULL );
+	//assert( new_ptep->pp_ref == 0 );
 	new_ptep->pp_ref = 1;
 	*pde = page2pa(new_ptep) | PTE_P | PTE_U;
-	ptep = page2kva(new_page);
+	ptep = page2kva(new_ptep);
 	return ptep + PTX(va);
 }
 
@@ -467,6 +470,28 @@ int
 page_insert(pde_t *pgdir, struct PageInfo *pp, void *va, int perm)
 {
 	// Fill this function in
+	
+	pte_t* ptep = pgdir_walk(pgdir, va, true);
+	
+	if(!ptep) {
+		return -E_NO_MEM;
+	}
+
+	
+	if( pa2page(*ptep) != pp ){
+		page_remove(pgdir, va);
+		assert( *ptep == 0 );
+		assert(pp->pp_ref >= 0);
+		pp->pp_ref++;
+	}
+
+	
+	*ptep = page2pa(pp) | perm | PTE_P;
+	/* we should also change pde's perm*/
+	pde_t *pde = pgdir + PDX(va); 
+	*pde = *pde | perm;
+	
+	
 	return 0;
 }
 
@@ -485,7 +510,13 @@ struct PageInfo *
 page_lookup(pde_t *pgdir, void *va, pte_t **pte_store)
 {
 	// Fill this function in
-	return NULL;
+	pte_t *ptep = pgdir_walk(pgdir, va, false);
+	if(!ptep) {
+		return NULL;
+	}
+	assert(pte_store);
+	*pte_store = ptep;
+	return pa2page(*ptep);
 }
 
 //
@@ -507,6 +538,17 @@ void
 page_remove(pde_t *pgdir, void *va)
 {
 	// Fill this function in
+	pte_t *ptep;
+	struct PageInfo *pp = page_lookup(pgdir, va, &ptep);
+	
+	if(!pp) {
+		return;
+	}
+	
+	page_decref(pp);
+	assert(ptep != NULL);
+	*ptep = 0;
+	tlb_invalidate(pgdir, va);
 }
 
 //
