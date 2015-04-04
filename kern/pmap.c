@@ -282,7 +282,7 @@ page_init(void)
 	assert(upper_num < npages);
 	size_t i;
 	for(i = 0; i < npages; i++){
-		pages[i].pp_ref = 0;
+		//pages[i].pp_ref = 0;
 		
 		/* preserve the real-mode IDT and BIOS structures */
 		if(i == 0) { continue; }
@@ -380,11 +380,34 @@ page_decref(struct PageInfo* pp)
 // Hint 3: look at inc/mmu.h for useful macros that mainipulate page
 // table and page directory entries.
 //
+
+/*
+	hint from check
+	ptep = (pte_t *) KADDR(PTE_ADDR(kern_pgdir[PDX(PGSIZE)]));
+	assert(pgdir_walk(kern_pgdir, (void*)PGSIZE, 0) == ptep+PTX(PGSIZE));
+*/
 pte_t *
 pgdir_walk(pde_t *pgdir, const void *va, int create)
 {
 	// Fill this function in
-	return NULL;
+	pde_t *pde = pgdir + PDX(va);
+	pte_t *ptep = NULL;
+	if(pde & PTE_P) { /* present */
+		ptep = KADDR(PTE_ADDR(*pde));
+		return ptep + PTX(va);
+	}
+
+	if(create == false) {
+		return NULL;
+	}
+
+	struct PageInfo *new_ptep = page_alloc(ALLOC_ZERO);
+	assert( new_ptep!= NULL );
+
+	new_ptep->pp_ref = 1;
+	*pde = page2pa(new_ptep) | PTE_P | PTE_U;
+	ptep = page2kva(new_page);
+	return ptep + PTX(va);
 }
 
 //
@@ -402,6 +425,17 @@ static void
 boot_map_region(pde_t *pgdir, uintptr_t va, size_t size, physaddr_t pa, int perm)
 {
 	// Fill this function in
+	assert( !(size % PGSIZE) );
+
+	for(; size; size -= PGSIZE) {
+		pte_t *pte = pgdir_walk(pgdir, (void *)va, true);
+		*pte = pa | perm | PTE_P;
+
+		assert(va <= 0xFFFFFFFF - PGSIZE);
+		pa += PGSIZE;
+		va += PGSIZE;
+	}
+
 }
 
 //
