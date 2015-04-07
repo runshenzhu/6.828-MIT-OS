@@ -21,6 +21,18 @@ start:
   movw    %ax,%es             # -> Extra Segment
   movw    %ax,%ss             # -> Stack Segment
 
+  # A virtual segment:offset can yield a 21-bit physical address, 
+  # but the Intel 8088 could only address 20 bits of memory, 
+  # so it discarded the top bit: 0xffff0+0xffff = 0x10ffef, 
+  # but virtual address 0xffff:0xffff on the 8088 referred to physical address 0x0ffef. 
+  # Some early software relied on the hardware ignoring the 21st address bit, 
+  # so when Intel introduced processors with more than 20 bits of physical address, 
+  # IBM pro- vided a compatibility hack that is a requirement for PC-compatible hardware. 
+  # If the second bit of the keyboard controller’s output port is low, 
+  # the 21st physical address bit is always cleared; 
+  # If high, the 21st bit acts normally. 
+  # The boot loader must enable the 21st address bit using I/O to the keyboard controller on ports 0x64 and 0x60
+
   # Enable A20:
   #   For backwards compatibility with the earliest PCs, physical
   #   address line 20 is tied low, so that addresses higher than
@@ -53,6 +65,10 @@ seta20.2:
   orl     $CR0_PE_ON, %eax
   movl    %eax, %cr0
   
+  #if 0
+Enabling protected mode does not immediately change how the processor translates logical to physical addresses; it is only when one loads a new value into a segment register that the processor reads the GDT and changes its internal segmentation settings. One cannot directly modify %cs, so instead the code executes an ljmp (far jump) instruction (8953), which allows a code segment selector to be specified. The jump continues execution at the next line (8956) but in doing so sets %cs to refer to the code descriptor entry in gdt. That descriptor describes a 32-bit code segment, so the processor switches into 32-bit mode.
+  #endif
+
   # Jump to next instruction, but in 32-bit code segment.
   # Switches processor into 32-bit mode.
   ljmp    $PROT_MODE_CSEG, $protcseg
