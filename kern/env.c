@@ -537,9 +537,8 @@ env_run(struct Env *e)
 		curenv->env_status = ENV_RUNNABLE;
 	}
 	else if (curenv != NULL) {
-		char *status[] = {"FREE", "DYING", "RUNNABLE", "RUNNING", "NOT RUNABLE"};
-		cprintf("debug: status of curenv is %s\n", status[curenv->env_status]);
-			//{"FREE", "DYING", "RUNNABLE", "RUNNING", "NOT RUNABLE"}[curenv->env_status]);
+		cprintf("debug: status of curenv is %s\n", \
+			(char *[]){"FREE", "DYING", "RUNNABLE", "RUNNING", "NOT RUNABLE"}[curenv->env_status]);
 	}
 
 
@@ -547,8 +546,9 @@ env_run(struct Env *e)
 	curenv = e;
 	curenv->env_status = ENV_RUNNING;
 	curenv->env_runs++;
-	lcr3(PADDR(e->env_pgdir));
+	lcr3(PADDR(curenv->env_pgdir));
 	env_pop_tf(&(curenv->env_tf));
-	panic("env_run not yet implemented");
+	/* we should never arrive here */
+	panic("env_run error");
 }
 
