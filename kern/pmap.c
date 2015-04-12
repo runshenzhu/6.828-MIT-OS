@@ -619,7 +619,22 @@ int
 user_mem_check(struct Env *env, const void *va, size_t len, int perm)
 {
 	// LAB 3: Your code here.
+	user_mem_check_addr = (uintptr_t)va;
+	while((char *)user_mem_check_addr < (char *)va + len) {
+		
+		/* check the address is below ULIM */
+		if(user_mem_check_addr >= ULIM) {
+			return -E_FAULT;
+		}
 
+		/* check the page table gives it permission */
+		pte_t *ptep = pgdir_walk(env->env_pgdir, (void *)user_mem_check_addr, 0);
+		if(!ptep || ((*ptep & perm) != perm)) {
+			return -E_FAULT;
+		}
+
+		user_mem_check_addr++;
+	}
 	return 0;
 }
 
