@@ -111,7 +111,7 @@ TRAPHANDLER_NOEC(vector16, T_FPERR);		//16
 TRAPHANDLER(vector17, T_ALIGN);				//17
 TRAPHANDLER_NOEC(vector18, T_MCHK);			//18
 TRAPHANDLER_NOEC(vector19, T_SIMDERR);		//19
-TRAPHANDLER_NOEC(vector48, T_SYSCALL);		//30 syscall
+TRAPHANDLER_NOEC(vector48, T_SYSCALL);		//48 syscall
 /*
  * Lab 3: Your code here for _alltraps
  */

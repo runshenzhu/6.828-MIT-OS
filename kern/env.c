@@ -559,12 +559,14 @@ env_run(struct Env *e)
 	//	e->env_tf to sensible values.
 
 	// LAB 3: Your code here.
+	assert(e->env_status == ENV_RUNNABLE || ( e==curenv && e->env_status == ENV_RUNNING));
 	if(curenv != NULL && curenv->env_status == ENV_RUNNING) {
 		curenv->env_status = ENV_RUNNABLE;
 	}
 	else if (curenv != NULL) {
 		cprintf("debug: status of curenv is %s\n", \
 			(char *[]){"FREE", "DYING", "RUNNABLE", "RUNNING", "NOT RUNABLE"}[curenv->env_status]);
+		assert(curenv == e);
 	}
 
 
@@ -573,6 +575,7 @@ env_run(struct Env *e)
 	curenv->env_status = ENV_RUNNING;
 	curenv->env_runs++;
 	lcr3(PADDR(curenv->env_pgdir));
+	unlock_kernel();
 	env_pop_tf(&(curenv->env_tf));
 	/* we should never arrive here */
 	panic("env_run error");

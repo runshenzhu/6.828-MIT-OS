@@ -129,12 +129,14 @@ trap_init_percpu(void)
 	*/
 	uint32_t cpuid = thiscpu->cpu_id;
 	thiscpu->cpu_ts.ts_esp0 = KSTACKTOP - cpuid * (KSTKSIZE + KSTKGAP);
-	thiscpu->cpu_ts.ts_ss0 = GD_KT;
+	thiscpu->cpu_ts.ts_ss0 = GD_KD;
 	gdt[(GD_TSS0 >> 3) + cpuid] = SEG16(STS_T32A, (uint32_t) (&(thiscpu->cpu_ts)),
-					sizeof(struct Taskstate) - 1, 0);
+					sizeof(struct Taskstate), 0);
 	gdt[(GD_TSS0 >> 3) + cpuid].sd_s = 0;
 	ltr(GD_TSS0 + (cpuid << 3));
 	lidt(&idt_pd);
+
+
 }
 
 void
@@ -261,6 +263,7 @@ trap(struct Trapframe *tf)
 		// Acquire the big kernel lock before doing any
 		// serious kernel work.
 		// LAB 4: Your code here.
+		lock_kernel();
 		assert(curenv);
 
 		// Garbage collect if current enviroment is a zombie
