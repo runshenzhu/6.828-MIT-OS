@@ -16,3 +16,6 @@
 /sol?/
 /myapi.key
 .suf
+.tags
+.tags_sorted_by_file
+index.html
