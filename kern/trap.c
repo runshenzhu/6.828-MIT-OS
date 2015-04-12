@@ -69,7 +69,8 @@ trap_init(void)
 	for(i = 0; i < 256; i++)
     	SETGATE(idt[i], 0, GD_KT, vectors[i], 0);
     SETGATE(idt[T_DEBUG], 0, GD_KT, vectors[T_DEBUG], 3);
-    SETGATE(idt[T_SYSCALL], 1, GD_KT, vectors[T_SYSCALL], 3);
+    SETGATE(idt[T_BRKPT], 0, GD_KT, vectors[T_BRKPT], 3);
+    SETGATE(idt[T_SYSCALL], 1, GD_KT, vectors[T_SYSCALL-T_TABLE_HOLE], 3);
 	// Per-CPU setup 
 	trap_init_percpu();
 }
@@ -149,13 +150,36 @@ trap_dispatch(struct Trapframe *tf)
 	// LAB 3: Your code here.
 
 	// Unexpected trap: The user process or the kernel has a bug.
-	print_trapframe(tf);
-	if (tf->tf_cs == GD_KT)
-		panic("unhandled trap in kernel");
-	else {
-		env_destroy(curenv);
-		return;
+	switch(tf->tf_trapno) {
+		case T_BRKPT: { /* 3 breakpoint */
+			monitor(tf);
+			break;
+		}
+		case T_PGFLT: {	/* 14 page fault*/
+			page_fault_handler(tf);
+			break;
+		}
+		case T_SYSCALL: { /* 48 syscall */
+			int32_t r = syscall(tf->tf_regs.reg_eax, tf->tf_regs.reg_edx, \
+				tf->tf_regs.reg_ecx, tf->tf_regs.reg_ebx, \
+				tf->tf_regs.reg_edi, tf->tf_regs.reg_esi);
+			if(r < 0) {
+				panic("syscall failed %e", r);
+			}
+			tf->tf_regs.reg_eax = r;
+			break;
+		}
+		default:{
+			print_trapframe(tf);
+			if (tf->tf_cs == GD_KT)
+				panic("unhandled trap in kernel");
+			else {
+				env_destroy(curenv);
+				return;
+			}
+		}
 	}
+	
 }
 
 void

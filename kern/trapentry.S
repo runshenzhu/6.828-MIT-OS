@@ -20,7 +20,7 @@
  *   void NAME();
  * where NAME is the argument passed to TRAPHANDLER.
  */
- 
+
 #define TRAPHANDLER(name, num)						\
 	.text;	\
 	.globl name;		/* define global symbol for 'name' */	\
@@ -101,15 +101,16 @@ TRAPHANDLER_NOEC(vector7, T_DEVICE);			//7
 TRAPHANDLER(vector8, T_DBLFLT);	//8
 TRAPHANDLER_NOEC(vector9, 9);				//9
 TRAPHANDLER(vector10, T_TSS);		//10
-TRAPHANDLER(vector11, T_SEGNP);	//11
-TRAPHANDLER(vector12, T_STACK);	//12
-TRAPHANDLER(vector13, T_GPFLT);	//13
-TRAPHANDLER(vector14, T_PGFLT);	//14
+TRAPHANDLER(vector11, T_SEGNP);				//11
+TRAPHANDLER(vector12, T_STACK);				//12
+TRAPHANDLER(vector13, T_GPFLT);				//13
+TRAPHANDLER(vector14, T_PGFLT);				//14
 TRAPHANDLER_NOEC(vector15, 15);				//15
-TRAPHANDLER_NOEC(vector16, T_FPERR);			//16
-TRAPHANDLER(vector17, T_ALIGN);	//17
+TRAPHANDLER_NOEC(vector16, T_FPERR);		//16
+TRAPHANDLER(vector17, T_ALIGN);				//17
 TRAPHANDLER_NOEC(vector18, T_MCHK);			//18
 TRAPHANDLER_NOEC(vector19, T_SIMDERR);		//19
+TRAPHANDLER_NOEC(vector48, T_SYSCALL);		//30 syscall
 /*
  * Lab 3: Your code here for _alltraps
  */
