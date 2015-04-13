@@ -502,9 +502,10 @@ env_destroy(struct Env *e)
 	}
 
 	env_free(e);
-
+	cprintf("%d destroy success\n", e->env_id);
 	if (curenv == e) {
 		curenv = NULL;
+		cprintf("%d destroy success, and this is curenv\n", e->env_id);
 		sched_yield();
 	}
 }

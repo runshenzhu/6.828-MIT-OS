@@ -31,30 +31,38 @@ sched_yield(void)
 	// LAB 4: Your code here.
 	struct Env * next;
 	if(curenv == NULL) {
-		next = envs;
+		//cprintf("curenv is NULL\n");
+		next = &envs[0];
 	}
 	else {
-		next = curenv->env_link;
+		next = curenv + 1;
 	}
-	int i = 0;
-	while(next != curenv) {
-		//cprintf("debug i is %d NENV is %d\n", ++i, NENV); //debug
-		assert(next != NULL);
+	int times = 0;
+	while(times < NENV) {
+		times++;
+		if(next >= (envs + NENV)) {
+			next = envs;
+		}
+		//cprintf("debug i is %d curenv is %d\n", next - envs, curenv == NULL ? -1 : curenv - envs); //debug
+		assert(next != NULL && (next - envs) >= 0 && (next - envs) < NENV);
 		if(next->env_status == ENV_RUNNABLE) {
 			break;
 		}
-		next = next->env_link;
-		if(next == NULL) {
-			next = &envs[0];
-			
-		}
+		next++;
 	}
+	//cprintf("break the while\n");
 	if(next != NULL) {
-		if(next->env_status == ENV_RUNNABLE || (next == curenv && next->env_status == ENV_RUNNING)){
+		//cprintf("debug\n");
+		if(next->env_status == ENV_RUNNABLE){
+			//cprintf("choose %d to run\n", next->env_id);
 			env_run(next);
+		}
+		else if (curenv->env_status == ENV_RUNNING) {
+			env_run(curenv);
 		}
 	}
 	// sched_halt never returns
+	//cprintf("no runnable??\n");
 	sched_halt();
 }
 
@@ -65,10 +73,14 @@ void
 sched_halt(void)
 {
 	int i;
-
+	//cprintf("in sched halt\n");
 	// For debugging and testing purposes, if there are no runnable
 	// environments in the system, then drop into the kernel monitor.
 	for (i = 0; i < NENV; i++) {
+		/*
+		cprintf("i is %d in %p, status is %s\n", i, &envs[i],\
+		 (char *[]){"FREE", "DYING", "RUNNABLE", "RUNNING", "NOT RUNABLE"}[envs[i].env_status]);
+		 */
 		if ((envs[i].env_status == ENV_RUNNABLE ||
 		     envs[i].env_status == ENV_RUNNING ||
 		     envs[i].env_status == ENV_DYING))
@@ -78,6 +90,10 @@ sched_halt(void)
 		cprintf("No runnable environments in the system!\n");
 		while (1)
 			monitor(NULL);
+	}
+	else {
+		cprintf("there is a %s env\n", \
+		(char *[]){"FREE", "DYING", "RUNNABLE", "RUNNING", "NOT RUNABLE"}[envs[i].env_status]);
 	}
 
 	// Mark that no environment is running on this CPU

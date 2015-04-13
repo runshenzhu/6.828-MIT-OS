@@ -31,7 +31,7 @@ struct Pseudodesc idt_pd = {
 };
 
 
-static const char *trapname(int trapno)
+static const char *trapname(uint32_t trapno)
 {
 	static const char * const excnames[] = {
 		"Divide error",
@@ -257,7 +257,7 @@ trap(struct Trapframe *tf)
 	// fails, DO NOT be tempted to fix it by inserting a "cli" in
 	// the interrupt path.
 	assert(!(read_eflags() & FL_IF));
-
+	// cprintf("trap is %s\n", trapname(tf->tf_trapno));	//print trap, for debug
 	if ((tf->tf_cs & 3) == 3) {
 		// Trapped from user mode.
 		// Acquire the big kernel lock before doing any

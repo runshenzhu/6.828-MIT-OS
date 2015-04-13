@@ -30,7 +30,10 @@ extern struct spinlock kernel_lock;
 static inline void
 lock_kernel(void)
 {
+	
 	spin_lock(&kernel_lock);
+	//extern int cpunum(void);
+	//cprintf("cpu: %d get lock\n", cpunum());
 }
 
 static inline void
@@ -43,6 +46,8 @@ unlock_kernel(void)
 	// pause, this CPU is likely to reacquire the lock before
 	// another CPU has even been given a chance to acquire it.
 	asm volatile("pause");
+	//extern int cpunum(void);
+	//cprintf("cpu: %d release lock\n", cpunum());
 }
 
 #endif

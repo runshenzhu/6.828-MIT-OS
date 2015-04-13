@@ -585,8 +585,10 @@ page_lookup(pde_t *pgdir, void *va, pte_t **pte_store)
 	if(!ptep) {
 		return NULL;
 	}
-	assert(pte_store);
-	*pte_store = ptep;
+	//assert(pte_store);
+	if(pte_store != NULL) {
+		*pte_store = ptep;
+	}
 	return pa2page(*ptep);
 }
 
