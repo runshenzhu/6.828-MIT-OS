@@ -344,11 +344,61 @@ page_fault_handler(struct Trapframe *tf)
 	//   (the 'tf' variable points at 'curenv->env_tf').
 
 	// LAB 4: Your code here.
-
-	// Destroy the environment that caused the fault.
 	cprintf("[%08x] user fault va %08x ip %08x\n",
 		curenv->env_id, fault_va, tf->tf_eip);
 	print_trapframe(tf);
-	env_destroy(curenv);
+	uintptr_t esp = tf->tf_esp;
+	
+	//check
+	cprintf("check stack overflow, user stack is %08x - %08x, exception stack is %08x - %08x, esp is %08x\n", \
+			USTACKTOP, USTACKTOP - PGSIZE, UXSTACKTOP, UXSTACKTOP - PGSIZE, esp);
+	if(esp > USTACKTOP && esp < (USTACKTOP - PGSIZE - 4 - sizeof(struct UTrapframe))) { /* exception stack overflow */
+		cprintf("exception stack overflow, user stack is %08x - %08x, exception stack is %08x - %08x, esp is %08x\n", \
+			USTACKTOP, USTACKTOP - PGSIZE, UXSTACKTOP, UXSTACKTOP - PGSIZE, esp);
+		env_destroy(curenv);	//not return
+	}
+
+	if(curenv->env_pgfault_upcall == NULL) {
+		env_destroy(curenv);	//not return
+	}
+
+
+
+	struct UTrapframe *utf;
+	if(esp <= USTACKTOP) { /* first enter */
+		/* make sure we have a valid uxstack */
+		/* void user_mem_assert(struct Env *env, const void *va, size_t len, int perm) */
+		//can not pass make grade
+		//user_mem_assert(curenv, (void *)(UXSTACKTOP - PGSIZE), PGSIZE, PTE_W);
+		utf = (struct UTrapframe *)(UXSTACKTOP - sizeof(struct UTrapframe));
+	}
+	else {
+		assert(esp < UXSTACKTOP && esp >= UXSTACKTOP - PGSIZE - 4 - sizeof(struct UTrapframe));
+		utf = (struct UTrapframe *)(esp - 4 - sizeof(struct UTrapframe));
+	}
+	user_mem_assert(curenv, (void *)(utf), sizeof(struct UTrapframe), PTE_W | PTE_U | PTE_P);
+	/*
+	struct UTrapframe {
+	uint32_t utf_fault_va;	
+	uint32_t utf_err;
+	
+	struct PushRegs utf_regs;
+	uintptr_t utf_eip;
+	uint32_t utf_eflags;
+	
+	uintptr_t utf_esp;
+	} __attribute__((packed));
+	*/
+	assert(tf == &(curenv->env_tf));
+	utf->utf_fault_va = fault_va;
+	utf->utf_err = tf->tf_err;
+	utf->utf_regs = tf->tf_regs;
+	utf->utf_eip = tf->tf_eip;
+	utf->utf_eflags = tf->tf_eflags;
+	utf->utf_esp = tf->tf_esp;
+
+	tf->tf_esp = (uintptr_t)utf;
+	tf->tf_eip = (uintptr_t)curenv->env_pgfault_upcall;
+	env_run(curenv);
 }
 

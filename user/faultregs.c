@@ -75,7 +75,7 @@ static void
 pgfault(struct UTrapframe *utf)
 {
 	int r;
-
+	cprintf("pgfault va is %08x\n", utf->utf_fault_va);
 	if (utf->utf_fault_va != (uint32_t)UTEMP)
 		panic("pgfault expected at UTEMP, got 0x%08x (eip %08x)",
 		      utf->utf_fault_va, utf->utf_eip);

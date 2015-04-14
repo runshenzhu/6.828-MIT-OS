@@ -145,7 +145,16 @@ static int
 sys_env_set_pgfault_upcall(envid_t envid, void *func)
 {
 	// LAB 4: Your code here.
-	panic("sys_env_set_pgfault_upcall not implemented");
+	struct Env *target_env = NULL;
+	int r = envid2env(envid, &target_env, true);
+	if( r != 0 ) { /* fail */
+		return r;
+	}
+	assert(target_env != NULL);
+	assert((envid == 0 && target_env == curenv) || target_env->env_id == envid);
+	assert(func != NULL);
+	target_env->env_pgfault_upcall = func;
+	return 0;
 }
 
 // Allocate a page of memory and map it at 'va' with permission
@@ -190,7 +199,7 @@ sys_page_alloc(envid_t envid, void *va, int perm)
 	}
 
 	assert(target_env != NULL);
-	assert(target_env->env_id == envid);
+	assert(envid == 0 || target_env->env_id == envid);
 
 	struct PageInfo *new_page = page_alloc(ALLOC_ZERO);
 	if(new_page == NULL) {
@@ -425,11 +434,16 @@ syscall(uint32_t syscallno, uint32_t a1, uint32_t a2, uint32_t a3, uint32_t a4, 
 		r = sys_env_set_status(a1, a2);
 		break;
 	}
-
-	case SYS_yield: {
+	case SYS_env_set_pgfault_upcall: {
+		r = sys_env_set_pgfault_upcall(a1, (void *)a2);
+		break;
+	}
+	case SYS_yield: {	//10
 		sched_yield();
+		break;
 	}
 	default:
+		cprintf("syscallno is %d\n", syscallno);	//for debug
 		r = -E_INVAL;
 	}
 
