@@ -58,12 +58,14 @@ int	sys_ipc_recv(void *rcv_pg);
 static __inline envid_t __attribute__((always_inline))
 sys_exofork(void)
 {
+	cprintf("before\n");
 	envid_t ret;
 	__asm __volatile("int %2"
 		: "=a" (ret)
 		: "a" (SYS_exofork),
 		  "i" (T_SYSCALL)
 	);
+	cprintf("after\n");
 	return ret;
 }
 

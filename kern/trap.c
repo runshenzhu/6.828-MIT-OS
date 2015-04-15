@@ -350,8 +350,10 @@ page_fault_handler(struct Trapframe *tf)
 	uintptr_t esp = tf->tf_esp;
 	
 	//check
+	
 	cprintf("check stack overflow, user stack is %08x - %08x, exception stack is %08x - %08x, esp is %08x\n", \
 			USTACKTOP, USTACKTOP - PGSIZE, UXSTACKTOP, UXSTACKTOP - PGSIZE, esp);
+	
 	if(esp > USTACKTOP && esp < (USTACKTOP - PGSIZE - 4 - sizeof(struct UTrapframe))) { /* exception stack overflow */
 		cprintf("exception stack overflow, user stack is %08x - %08x, exception stack is %08x - %08x, esp is %08x\n", \
 			USTACKTOP, USTACKTOP - PGSIZE, UXSTACKTOP, UXSTACKTOP - PGSIZE, esp);
