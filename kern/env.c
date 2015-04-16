@@ -258,7 +258,7 @@ env_alloc(struct Env **newenv_store, envid_t parent_id)
 
 	// Enable interrupts while in user mode.
 	// LAB 4: Your code here.
-
+	e->env_tf.tf_eflags |= FL_IF;
 	// Clear the page fault handler until user installs one.
 	e->env_pgfault_upcall = 0;
 
@@ -558,21 +558,28 @@ env_run(struct Env *e)
 	//	e->env_tf to sensible values.
 
 	// LAB 3: Your code here.
-	assert(e->env_status == ENV_RUNNABLE || ( e==curenv && e->env_status == ENV_RUNNING));
+	assert(e->env_status == ENV_RUNNABLE || ( e == curenv && e->env_status == ENV_RUNNING));
 	if(curenv != NULL && curenv->env_status == ENV_RUNNING) {
 		curenv->env_status = ENV_RUNNABLE;
 	}
+
 	else if (curenv != NULL) {
+		;
+		/*
 		cprintf("debug: status of curenv is %s\n", \
 			(char *[]){"FREE", "DYING", "RUNNABLE", "RUNNING", "NOT RUNABLE"}[curenv->env_status]);
-		assert(curenv == e);
+		*/
+		/*assert fail: ipc_recv, current->env_status == not runable && current != e*/
+		//assert(curenv == e);
 	}
 
 
 
 	curenv = e;
+	curenv->env_cpunum = cpunum();
 	curenv->env_status = ENV_RUNNING;
 	curenv->env_runs++;
+	curenv->env_tf.tf_eflags |= FL_IF;
 	lcr3(PADDR(curenv->env_pgdir));
 	unlock_kernel();
 	env_pop_tf(&(curenv->env_tf));

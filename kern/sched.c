@@ -29,6 +29,7 @@ sched_yield(void)
 	// below to halt the cpu.
 
 	// LAB 4: Your code here.
+	//cprintf("in sched\n"); //debug
 	struct Env * next;
 	if(curenv == NULL) {
 		//cprintf("curenv is NULL\n");
@@ -91,11 +92,12 @@ sched_halt(void)
 		while (1)
 			monitor(NULL);
 	}
+	/*
 	else {
 		cprintf("there is a %s env\n", \
 		(char *[]){"FREE", "DYING", "RUNNABLE", "RUNNING", "NOT RUNABLE"}[envs[i].env_status]);
 	}
-
+	*/
 	// Mark that no environment is running on this CPU
 	curenv = NULL;
 	lcr3(PADDR(kern_pgdir));

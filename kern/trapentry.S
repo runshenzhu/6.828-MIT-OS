@@ -42,7 +42,7 @@
 	.globl name;							\
 	.type name, @function;						\
 	.align 2;							\
-	name:								\
+	name:	\
 	pushl $0;							\
 	pushl $(num);							\
 	jmp _alltraps;	\
@@ -111,6 +111,24 @@ TRAPHANDLER_NOEC(vector16, T_FPERR);		//16
 TRAPHANDLER(vector17, T_ALIGN);				//17
 TRAPHANDLER_NOEC(vector18, T_MCHK);			//18
 TRAPHANDLER_NOEC(vector19, T_SIMDERR);		//19
+
+TRAPHANDLER_NOEC(vector32, 32);				//32
+TRAPHANDLER_NOEC(vector33, 33);				
+TRAPHANDLER_NOEC(vector34, 34);				
+TRAPHANDLER_NOEC(vector35, 35);				
+TRAPHANDLER_NOEC(vector36, 36);				
+TRAPHANDLER_NOEC(vector37, 37);				
+TRAPHANDLER_NOEC(vector38, 38);				
+TRAPHANDLER_NOEC(vector39, 39);				
+TRAPHANDLER_NOEC(vector40, 40);				
+TRAPHANDLER_NOEC(vector41, 41);				
+TRAPHANDLER_NOEC(vector42, 42);				
+TRAPHANDLER_NOEC(vector43, 43);				
+TRAPHANDLER_NOEC(vector44, 44);				
+TRAPHANDLER_NOEC(vector45, 45);				
+TRAPHANDLER_NOEC(vector46, 46);				
+TRAPHANDLER_NOEC(vector47, 47);		
+
 TRAPHANDLER_NOEC(vector48, T_SYSCALL);		//48 syscall
 /*
  * Lab 3: Your code here for _alltraps

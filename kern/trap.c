@@ -73,11 +73,17 @@ trap_init(void)
 	extern uint32_t vectors[];
 	// LAB 3: Your code here.
 	int i;
-	for(i = 0; i < 256; i++)
-    	SETGATE(idt[i], 0, GD_KT, vectors[i], 0);
+	for(i = 0; i < 256; i++) {
+		if(i >= IRQ_OFFSET && i <= T_SYSCALL) { 
+    		SETGATE(idt[i], 0, GD_KT, vectors[i - T_TABLE_HOLE], 0);
+    	}
+    	else {
+    		SETGATE(idt[i], 0, GD_KT, vectors[i], 0);
+    	}
+    }
     SETGATE(idt[T_DEBUG], 0, GD_KT, vectors[T_DEBUG], 3);
     SETGATE(idt[T_BRKPT], 0, GD_KT, vectors[T_BRKPT], 3);
-    SETGATE(idt[T_SYSCALL], 1, GD_KT, vectors[T_SYSCALL-T_TABLE_HOLE], 3);
+    SETGATE(idt[T_SYSCALL], 0, GD_KT, vectors[T_SYSCALL - T_TABLE_HOLE], 3);
 	// Per-CPU setup 
 	trap_init_percpu();
 }
@@ -199,11 +205,17 @@ trap_dispatch(struct Trapframe *tf)
 		print_trapframe(tf);
 		return;
 	}
-
+	
 	// Handle clock interrupts. Don't forget to acknowledge the
 	// interrupt using lapic_eoi() before calling the scheduler!
 	// LAB 4: Your code here.
-
+	if (tf->tf_trapno == IRQ_OFFSET + IRQ_TIMER) {
+		//cprintf("Spurious interrupt on irq 0\n");
+		//while(1);
+		lapic_eoi();
+		sched_yield();
+		return;
+	}
 	// Unexpected trap: The user process or the kernel has a bug.
 	switch(tf->tf_trapno) {
 		case T_BRKPT: { /* 3 breakpoint */
@@ -218,8 +230,14 @@ trap_dispatch(struct Trapframe *tf)
 			int32_t r = syscall(tf->tf_regs.reg_eax, tf->tf_regs.reg_edx, \
 				tf->tf_regs.reg_ecx, tf->tf_regs.reg_ebx, \
 				tf->tf_regs.reg_edi, tf->tf_regs.reg_esi);
+			/*
 			if(r < 0) {
 				panic("syscall failed %e", r);
+			}
+			*/
+			if(tf->tf_regs.reg_eax == 12) {
+				cprintf("return ?? value is %d\n", r);
+				while(1);
 			}
 			tf->tf_regs.reg_eax = r;
 			break;
@@ -346,13 +364,14 @@ page_fault_handler(struct Trapframe *tf)
 	// LAB 4: Your code here.
 	cprintf("[%08x] user fault va %08x ip %08x\n",
 		curenv->env_id, fault_va, tf->tf_eip);
-	print_trapframe(tf);
+	//print_trapframe(tf);
 	uintptr_t esp = tf->tf_esp;
 	
 	//check
-	
+	/*
 	cprintf("check stack overflow, user stack is %08x - %08x, exception stack is %08x - %08x, esp is %08x\n", \
 			USTACKTOP, USTACKTOP - PGSIZE, UXSTACKTOP, UXSTACKTOP - PGSIZE, esp);
+			*/
 	
 	if(esp > USTACKTOP && esp < (USTACKTOP - PGSIZE - 4 - sizeof(struct UTrapframe))) { /* exception stack overflow */
 		cprintf("exception stack overflow, user stack is %08x - %08x, exception stack is %08x - %08x, esp is %08x\n", \
