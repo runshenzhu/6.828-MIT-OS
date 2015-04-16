@@ -355,11 +355,7 @@ sys_ipc_try_send(envid_t envid, uint32_t value, void *srcva, unsigned perm)
 		return -E_BAD_ENV;
 	}
 	assert(recv_env);
-
-	if(recv_env->env_ipc_recving == false || recv_env->env_status != ENV_NOT_RUNNABLE) {
-		return -E_IPC_NOT_RECV;
-	}
-
+	assert(recv_env->env_id == envid);
 	if(srcva < (void *)UTOP) {
 		if((uintptr_t)srcva % PGSIZE != 0) {
 			return -E_INVAL;
@@ -368,6 +364,13 @@ sys_ipc_try_send(envid_t envid, uint32_t value, void *srcva, unsigned perm)
 			return -E_INVAL;
 		}
 	}
+	
+	if(recv_env->env_ipc_recving == false) {
+		return -E_IPC_NOT_RECV;
+	}
+	//cprintf("%d try to fuck env %d\n", curenv->env_id, envid);
+	//cprintf("%d is %s\n", recv_env->env_id,(char *[]){"FREE", "DYING", "RUNNABLE", "RUNNING", "NOT RUNABLE"}[recv_env->env_status]);
+	assert(recv_env->env_status == ENV_NOT_RUNNABLE);
 
 	
 	recv_env->env_ipc_perm = 0;
@@ -388,13 +391,14 @@ sys_ipc_try_send(envid_t envid, uint32_t value, void *srcva, unsigned perm)
 		recv_env->env_ipc_perm = perm;
 	}
 
-
-	recv_env->env_ipc_recving == false;
+	//cprintf("%d is fucking env %d\n", curenv->env_id,envid);
+	recv_env->env_ipc_recving = false;
 	recv_env->env_ipc_from = curenv->env_id;
 	//assert(value != 0);
 	recv_env->env_ipc_value = value;
 	recv_env->env_status = ENV_RUNNABLE;
 	//recv_env->env_tf.tf_regs.reg_eax = 0;
+	//cprintf("%d finish fucking env %d\n", curenv->env_id,envid);
 	return 0;
 
 }
@@ -424,6 +428,7 @@ sys_ipc_recv(void *dstva)
 	curenv->env_ipc_dstva = dstva;
 	//cprintf("debug: ready to sched\n");
 	curenv->env_tf.tf_regs.reg_eax = 0;
+	//cprintf("%d is ready to be fucked\n", curenv->env_id);
 	curenv->env_ipc_recving = true;
 	sched_yield();
 	return 0;
