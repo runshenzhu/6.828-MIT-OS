@@ -192,7 +192,6 @@ file_block_walk(struct File *f, uint32_t filebno, uint32_t **ppdiskbno, bool all
 	}
 	uint32_t *indirect = (uint32_t *)diskaddr(f->f_indirect);
 	*ppdiskbno = &indirect[filebno - NDIRECT];
-	assert(**ppdiskbno == 0);
 	return 0;
 }
 
