@@ -127,6 +127,7 @@ fork(void)
 	
 	int r;
 	// set up our page fault handler appropriately.
+	assert(pgfault != NULL);
 	set_pgfault_handler(pgfault);
 	assert(thisenv->env_pgfault_upcall != NULL);
 	// Create a child.
@@ -172,6 +173,7 @@ fork(void)
 		panic("fail to alloc UXSTACK, %e",r);
 	}
 	/* int sys_env_set_pgfault_upcall(envid_t envid, void *func) */
+	assert(thisenv->env_pgfault_upcall != NULL);
 	r = sys_env_set_pgfault_upcall(envid, thisenv->env_pgfault_upcall);
 	if(r != 0) {
 		panic("fail to sys_env_set_pgfault_upcall, %e", r);

@@ -237,8 +237,8 @@ trap_dispatch(struct Trapframe *tf)
 				panic("syscall failed %e", r);
 			}
 			*/
-			if(tf->tf_regs.reg_eax == 12) {
-				cprintf("return ?? value is %d\n", r);
+			if(tf->tf_regs.reg_eax == SYS_ipc_recv) {
+				cprintf("return ?? value is %d, %e\n", r, r);
 				while(1);
 			}
 			tf->tf_regs.reg_eax = r;

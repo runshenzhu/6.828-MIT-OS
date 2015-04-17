@@ -431,8 +431,14 @@ env_create(uint8_t *binary, enum EnvType type)
 	if(r != 0){
 		panic("env_create failed, %e", r);
 	}
+	if(type == ENV_TYPE_FS) {
+		e->env_tf.tf_eflags |= FL_IOPL_3;
+	}
+	else {
+		e->env_tf.tf_eflags |= FL_IOPL_0;
+	}
 	load_icode(e, binary);
-	e->env_type = ENV_TYPE_USER;	
+	e->env_type = type;	
 }
 
 //
@@ -576,13 +582,20 @@ env_run(struct Env *e)
 		//assert(curenv == e);
 	}
 
-
-
 	curenv = e;
 	curenv->env_cpunum = cpunum();
 	curenv->env_status = ENV_RUNNING;
 	curenv->env_runs++;
 	curenv->env_tf.tf_eflags |= FL_IF;
+
+	/* double check IOPL */
+	if(curenv->env_type == ENV_TYPE_FS) {
+		assert( (curenv->env_tf.tf_eflags & FL_IOPL_MASK) == FL_IOPL_3 );
+	}
+	else if(curenv->env_type == ENV_TYPE_USER) {
+		assert( (curenv->env_tf.tf_eflags & FL_IOPL_MASK) == FL_IOPL_0 );
+	}
+
 	lcr3(PADDR(curenv->env_pgdir));
 	unlock_kernel();
 	env_pop_tf(&(curenv->env_tf));

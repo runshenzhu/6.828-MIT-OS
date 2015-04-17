@@ -13,8 +13,8 @@ enum {
 	SYS_exofork,
 	SYS_env_set_status,
 	SYS_env_set_trapframe,
-	SYS_env_set_pgfault_upcall,
-	SYS_yield,					//10
+	SYS_env_set_pgfault_upcall, //10
+	SYS_yield,					
 	SYS_ipc_try_send,
 	SYS_ipc_recv,
 	NSYSCALLS
@@ -31,8 +31,9 @@ static char *syscall_name_table[] = {
 	"SYS_page_unmap",
 	"SYS_exofork",
 	"SYS_env_set_status",
-	"SYS_env_set_pgfault_upcall",	
-	"SYS_yield",					//10
+	"SYS_env_set_trapframe",
+	"SYS_env_set_pgfault_upcall",	//10
+	"SYS_yield",					
 	"SYS_ipc_try_send",
 	"SYS_ipc_recv",
 	"NSYSCALLS"
