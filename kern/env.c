@@ -586,7 +586,7 @@ env_run(struct Env *e)
 	curenv->env_cpunum = cpunum();
 	curenv->env_status = ENV_RUNNING;
 	curenv->env_runs++;
-	curenv->env_tf.tf_eflags |= FL_IF;
+	assert(curenv->env_tf.tf_eflags & FL_IF);
 
 	/* double check IOPL */
 	if(curenv->env_type == ENV_TYPE_FS) {

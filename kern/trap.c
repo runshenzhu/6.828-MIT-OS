@@ -228,6 +228,14 @@ trap_dispatch(struct Trapframe *tf)
 			sched_yield();
 			break;
 		}
+		case IRQ_OFFSET+IRQ_KBD: { /* 1 keyboard */
+			kbd_intr();
+			break;
+		}
+		case IRQ_OFFSET+IRQ_SERIAL: { /* 4 */
+			serial_intr();
+			break;
+		}
 		case T_SYSCALL: { /* 48 syscall */
 			int32_t r = syscall(tf->tf_regs.reg_eax, tf->tf_regs.reg_edx, \
 				tf->tf_regs.reg_ecx, tf->tf_regs.reg_ebx, \

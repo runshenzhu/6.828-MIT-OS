@@ -83,7 +83,13 @@ duppage(envid_t envid, unsigned pn)
 
 	
 	void *va = (void *)(pn * PGSIZE);
-	if((ptep & (PTE_COW | PTE_W)) != 0){
+	if(ptep & PTE_SHARE) {
+		r = sys_page_map(0, va, envid, va, ptep & PTE_SYSCALL);
+		if(r != 0) {
+			panic("sys_page_map failed, %e",r);
+		}
+	}
+	else if((ptep & (PTE_COW | PTE_W)) != 0){
 		/* int sys_page_map(envid_t srcenv, void *srcva, envid_t dstenv, void *dstva, int perm) */
 		r = sys_page_map(0, va, envid, va, PTE_COW | PTE_U | PTE_P);
 		if(r != 0) {
@@ -93,9 +99,9 @@ duppage(envid_t envid, unsigned pn)
 		if(r != 0) {
 			panic("sys_page_map failed, %e",r);
 		}
-	}
+	} 
 	else {
-		r = sys_page_map(0, va, envid, va, PTE_U | PTE_P);
+		r = sys_page_map(0, va, envid, va, ptep & PTE_SYSCALL);
 		if(r != 0) {
 			panic("sys_page_map failed, %e",r);
 		}
@@ -146,7 +152,6 @@ fork(void)
 
 	// Copy our address space to the child.
 	uint8_t *addr;
-	extern unsigned char end[];
 	for (addr = 0; addr < (uint8_t *)UTOP; addr += PGSIZE){
 		unsigned pn = PGNUM(addr);
 		if (!(uvpd[PDX(pn<<PGSHIFT)] & PTE_P)) { 

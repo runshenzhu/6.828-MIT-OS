@@ -142,7 +142,20 @@ sys_env_set_trapframe(envid_t envid, struct Trapframe *tf)
 	// LAB 5: Your code here.
 	// Remember to check whether the user has supplied us with a good
 	// address!
-	panic("sys_env_set_trapframe not implemented");
+	struct Env *env = NULL;
+	int r = envid2env(envid, &env, true);
+	if( r != 0 ) { /* fail */
+		return r;
+	}
+
+	user_mem_assert(env, (void *)tf, sizeof (struct Trapframe), PTE_U | PTE_W | PTE_P);
+	tf->tf_eflags |= FL_IF;
+	tf->tf_ds = GD_UD | 3;
+	tf->tf_es = GD_UD | 3;
+	tf->tf_ss = GD_UD | 3;
+	tf->tf_cs = GD_UT | 3;
+	env->env_tf = *tf;
+	return 0;
 }
 
 // Set the page fault upcall for 'envid' by modifying the corresponding struct
@@ -456,6 +469,7 @@ syscall(uint32_t syscallno, uint32_t a1, uint32_t a2, uint32_t a3, uint32_t a4, 
 
 	//panic("syscall not implemented");
 	/*
+	enum {
 	SYS_cputs = 0,
 	SYS_cgetc,
 	SYS_getenvid,
@@ -465,11 +479,13 @@ syscall(uint32_t syscallno, uint32_t a1, uint32_t a2, uint32_t a3, uint32_t a4, 
 	SYS_page_unmap,
 	SYS_exofork,
 	SYS_env_set_status,
-	SYS_env_set_pgfault_upcall,
-	SYS_yield,					//10
+	SYS_env_set_trapframe,
+	SYS_env_set_pgfault_upcall, //10
+	SYS_yield,					
 	SYS_ipc_try_send,
 	SYS_ipc_recv,
 	NSYSCALLS
+	};
 	*/
 	//cprintf("syscall is %s\n", get_syscall_name(syscallno));	//print syscall, for debug
 	int32_t r = 0;
@@ -510,11 +526,15 @@ syscall(uint32_t syscallno, uint32_t a1, uint32_t a2, uint32_t a3, uint32_t a4, 
 		r = sys_env_set_status(a1, a2);
 		break;
 	}
-	case SYS_env_set_pgfault_upcall: {
+	case SYS_env_set_trapframe: {
+		r = sys_env_set_trapframe(a1, (struct Trapframe *)a2);
+		break;
+	}
+	case SYS_env_set_pgfault_upcall: { //10
 		r = sys_env_set_pgfault_upcall(a1, (void *)a2);
 		break;
 	}
-	case SYS_yield: {	//10
+	case SYS_yield: {	
 		sched_yield();
 		break;
 	}
