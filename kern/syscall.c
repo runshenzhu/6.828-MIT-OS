@@ -465,7 +465,7 @@ static int
 sys_time_msec(void)
 {
 	// LAB 6: Your code here.
-	panic("sys_time_msec not implemented");
+	return time_msec();
 }
 
 // Dispatches to the correct kernel function, passing the arguments.
@@ -493,6 +493,7 @@ syscall(uint32_t syscallno, uint32_t a1, uint32_t a2, uint32_t a3, uint32_t a4, 
 	SYS_yield,					
 	SYS_ipc_try_send,
 	SYS_ipc_recv,
+	SYS_time_msec,
 	NSYSCALLS
 	};
 	*/
@@ -553,6 +554,10 @@ syscall(uint32_t syscallno, uint32_t a1, uint32_t a2, uint32_t a3, uint32_t a4, 
 	}
 	case SYS_ipc_recv: {
 		r = sys_ipc_recv((void *)a1);
+		break;
+	}
+	case SYS_time_msec: {
+		r = sys_time_msec();
 		break;
 	}
 	default:
