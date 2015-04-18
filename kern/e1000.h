@@ -10,19 +10,37 @@
 
 typedef uint32_t e1000_status;  
 int attach_e1000(struct pci_func *pcif);
+
 /* 128 bit */
 struct tx_desc{
 	uint64_t addr;
 	uint16_t length;
 	uint8_t cso;
-	uint8_t cmd;
-	uint8_t status;
+	struct _cmd{
+		unsigned eop : 1;
+		unsigned ifcs : 1;
+		unsigned ic : 1;
+		unsigned rs : 1;
+		unsigned rsv : 1;
+		unsigned dext : 1;
+		unsigned vle : 1;
+		unsigned ide : 1;
+	}__attribute__((__packed__)) cmd;
+	struct _status{
+		unsigned dd : 1;
+		unsigned ec : 1;
+		unsigned lc : 1;
+		unsigned rsv : 1;
+		unsigned padding : 4;
+	}__attribute__((__packed__)) status;
 	uint8_t css;
 	uint16_t special;
 } __attribute__((__packed__));
 
 
-#define TDLEN  			(PGSIZE/sizeof(struct tx_desc))
+//#define TDLEN  			(PGSIZE/sizeof(struct tx_desc))
+#define TDLEN 64
+#define TX_BUFF_SIZE	1518
 /* E1000 register */
 #define E1000_STATUS   0x00008  /* Device Status - RO */
 #define E1000_TDBAL    0x03800  /* TX Descriptor Base Address Low - RW */
