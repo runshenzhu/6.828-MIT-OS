@@ -58,6 +58,7 @@ i386_init(void)
 	// Your code here:
 
 	// Starting non-boot CPUs
+	lock_kernel();
 	boot_aps();
 
 	// Start fs.
@@ -128,14 +129,16 @@ mp_main(void)
 	trap_init_percpu();
 	xchg(&thiscpu->cpu_status, CPU_STARTED); // tell boot_aps() we're up
 
+
 	// Now that we have finished some basic setup, call sched_yield()
 	// to start running processes on this CPU.  But make sure that
 	// only one CPU can enter the scheduler at a time!
 	//
 	// Your code here:
-
+	lock_kernel();
+	sched_yield();
 	// Remove this after you finish Exercise 4
-	for (;;);
+	//for (;;);
 }
 
 /*

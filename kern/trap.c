@@ -32,7 +32,7 @@ struct Pseudodesc idt_pd = {
 };
 
 
-static const char *trapname(int trapno)
+static const char *trapname(uint32_t trapno)
 {
 	static const char * const excnames[] = {
 		"Divide error",
@@ -71,9 +71,20 @@ void
 trap_init(void)
 {
 	extern struct Segdesc gdt[];
-
+	extern uint32_t vectors[];
 	// LAB 3: Your code here.
-
+	int i;
+	for(i = 0; i < 256; i++) {
+		if(i >= IRQ_OFFSET && i <= T_SYSCALL) { 
+    		SETGATE(idt[i], 0, GD_KT, vectors[i - T_TABLE_HOLE], 0);
+    	}
+    	else {
+    		SETGATE(idt[i], 0, GD_KT, vectors[i], 0);
+    	}
+    }
+    SETGATE(idt[T_DEBUG], 0, GD_KT, vectors[T_DEBUG], 3);
+    SETGATE(idt[T_BRKPT], 0, GD_KT, vectors[T_BRKPT], 3);
+    SETGATE(idt[T_SYSCALL], 0, GD_KT, vectors[T_SYSCALL - T_TABLE_HOLE], 3);
 	// Per-CPU setup 
 	trap_init_percpu();
 }
@@ -107,6 +118,7 @@ trap_init_percpu(void)
 
 	// Setup a TSS so that we get the right stack
 	// when we trap to the kernel.
+	/*
 	ts.ts_esp0 = KSTACKTOP;
 	ts.ts_ss0 = GD_KD;
 
@@ -121,6 +133,17 @@ trap_init_percpu(void)
 
 	// Load the IDT
 	lidt(&idt_pd);
+	*/
+	uint32_t cpuid = thiscpu->cpu_id;
+	thiscpu->cpu_ts.ts_esp0 = KSTACKTOP - cpuid * (KSTKSIZE + KSTKGAP);
+	thiscpu->cpu_ts.ts_ss0 = GD_KD;
+	gdt[(GD_TSS0 >> 3) + cpuid] = SEG16(STS_T32A, (uint32_t) (&(thiscpu->cpu_ts)),
+					sizeof(struct Taskstate), 0);
+	gdt[(GD_TSS0 >> 3) + cpuid].sd_s = 0;
+	ltr(GD_TSS0 + (cpuid << 3));
+	lidt(&idt_pd);
+
+
 }
 
 void
@@ -183,7 +206,7 @@ trap_dispatch(struct Trapframe *tf)
 		print_trapframe(tf);
 		return;
 	}
-
+	
 	// Handle clock interrupts. Don't forget to acknowledge the
 	// interrupt using lapic_eoi() before calling the scheduler!
 	// LAB 4: Your code here.
@@ -196,15 +219,57 @@ trap_dispatch(struct Trapframe *tf)
 
 	// Handle keyboard and serial interrupts.
 	// LAB 5: Your code here.
-
+	
 	// Unexpected trap: The user process or the kernel has a bug.
-	print_trapframe(tf);
-	if (tf->tf_cs == GD_KT)
-		panic("unhandled trap in kernel");
-	else {
-		env_destroy(curenv);
-		return;
+	switch(tf->tf_trapno) {
+		case T_BRKPT: { /* 3 breakpoint */
+			monitor(tf);
+			break;
+		}
+		case T_PGFLT: {	/* 14 page fault */
+			page_fault_handler(tf);
+			break;
+		}
+		case IRQ_OFFSET + IRQ_TIMER: { /* 32 timer */
+			lapic_eoi();
+			sched_yield();
+			break;
+		}
+		case IRQ_OFFSET+IRQ_KBD: { /* 1 keyboard */
+			kbd_intr();
+			break;
+		}
+		case IRQ_OFFSET+IRQ_SERIAL: { /* 4 */
+			serial_intr();
+			break;
+		}
+		case T_SYSCALL: { /* 48 syscall */
+			int32_t r = syscall(tf->tf_regs.reg_eax, tf->tf_regs.reg_edx, \
+				tf->tf_regs.reg_ecx, tf->tf_regs.reg_ebx, \
+				tf->tf_regs.reg_edi, tf->tf_regs.reg_esi);
+			/*
+			if(r < 0) {
+				panic("syscall failed %e", r);
+			}
+			*/
+			if(tf->tf_regs.reg_eax == SYS_ipc_recv) {
+				cprintf("return ?? value is %d, %e\n", r, r);
+				while(1);
+			}
+			tf->tf_regs.reg_eax = r;
+			break;
+		}
+		default:{
+			print_trapframe(tf);
+			if (tf->tf_cs == GD_KT)
+				panic("unhandled trap in kernel");
+			else {
+				env_destroy(curenv);
+				return;
+			}
+		}
 	}
+	
 }
 
 void
@@ -227,12 +292,13 @@ trap(struct Trapframe *tf)
 	// fails, DO NOT be tempted to fix it by inserting a "cli" in
 	// the interrupt path.
 	assert(!(read_eflags() & FL_IF));
-
+	// cprintf("trap is %s\n", trapname(tf->tf_trapno));	//print trap, for debug
 	if ((tf->tf_cs & 3) == 3) {
 		// Trapped from user mode.
 		// Acquire the big kernel lock before doing any
 		// serious kernel work.
 		// LAB 4: Your code here.
+		lock_kernel();
 		assert(curenv);
 
 		// Garbage collect if current enviroment is a zombie
@@ -278,7 +344,9 @@ page_fault_handler(struct Trapframe *tf)
 	// Handle kernel-mode page faults.
 
 	// LAB 3: Your code here.
-
+	if((tf->tf_cs & 0x3) == 0) {
+		panic("page fault in kernel-mode");
+	}
 	// We've already handled kernel-mode exceptions, so if we get here,
 	// the page fault happened in user mode.
 
@@ -311,11 +379,66 @@ page_fault_handler(struct Trapframe *tf)
 	//   (the 'tf' variable points at 'curenv->env_tf').
 
 	// LAB 4: Your code here.
-
-	// Destroy the environment that caused the fault.
+	/*
 	cprintf("[%08x] user fault va %08x ip %08x\n",
 		curenv->env_id, fault_va, tf->tf_eip);
-	print_trapframe(tf);
-	env_destroy(curenv);
+		*/
+	//print_trapframe(tf);
+	uintptr_t esp = tf->tf_esp;
+	
+	//check
+	/*
+	cprintf("check stack overflow, user stack is %08x - %08x, exception stack is %08x - %08x, esp is %08x\n", \
+			USTACKTOP, USTACKTOP - PGSIZE, UXSTACKTOP, UXSTACKTOP - PGSIZE, esp);
+			*/
+	
+	if(esp > USTACKTOP && esp < (USTACKTOP - PGSIZE - 4 - sizeof(struct UTrapframe))) { /* exception stack overflow */
+		cprintf("exception stack overflow, user stack is %08x - %08x, exception stack is %08x - %08x, esp is %08x\n", \
+			USTACKTOP, USTACKTOP - PGSIZE, UXSTACKTOP, UXSTACKTOP - PGSIZE, esp);
+		env_destroy(curenv);	//not return
+	}
+
+	if(curenv->env_pgfault_upcall == NULL) {
+		env_destroy(curenv);	//not return
+	}
+
+
+
+	struct UTrapframe *utf;
+	if(esp <= USTACKTOP) { /* first enter */
+		/* make sure we have a valid uxstack */
+		/* void user_mem_assert(struct Env *env, const void *va, size_t len, int perm) */
+		//can not pass make grade
+		//user_mem_assert(curenv, (void *)(UXSTACKTOP - PGSIZE), PGSIZE, PTE_W);
+		utf = (struct UTrapframe *)(UXSTACKTOP - sizeof(struct UTrapframe));
+	}
+	else {
+		assert(esp < UXSTACKTOP && esp >= UXSTACKTOP - PGSIZE - 4 - sizeof(struct UTrapframe));
+		utf = (struct UTrapframe *)(esp - 4 - sizeof(struct UTrapframe));
+	}
+	user_mem_assert(curenv, (void *)(utf), sizeof(struct UTrapframe), PTE_W | PTE_U | PTE_P);
+	/*
+	struct UTrapframe {
+	uint32_t utf_fault_va;	
+	uint32_t utf_err;
+	
+	struct PushRegs utf_regs;
+	uintptr_t utf_eip;
+	uint32_t utf_eflags;
+	
+	uintptr_t utf_esp;
+	} __attribute__((packed));
+	*/
+	assert(tf == &(curenv->env_tf));
+	utf->utf_fault_va = fault_va;
+	utf->utf_err = tf->tf_err;
+	utf->utf_regs = tf->tf_regs;
+	utf->utf_eip = tf->tf_eip;
+	utf->utf_eflags = tf->tf_eflags;
+	utf->utf_esp = tf->tf_esp;
+
+	tf->tf_esp = (uintptr_t)utf;
+	tf->tf_eip = (uintptr_t)curenv->env_pgfault_upcall;
+	env_run(curenv);
 }
 
