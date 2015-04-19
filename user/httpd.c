@@ -242,7 +242,6 @@ send_file(struct http_request *req)
 	// set file_size to the size of the file
 
 	// LAB 6: Your code here.
-	//cprintf("%s\n", req->url);
 	// not exist or dir
 	struct Stat statbuff;
 	if((r = stat(req->url, &statbuff)) < 0 || statbuff.st_isdir){
