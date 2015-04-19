@@ -199,7 +199,7 @@ static inline void init_e1000_rx(){
 	//Head should point to the first valid receive descriptor in the descriptor ring and 
 	//tail should point to one descriptor beyond the last valid descriptor in the descriptor ring.
 	set_e1000_register(E1000_RDH, 0);
-	set_e1000_register(E1000_RDT, RDLEN - 1);
+	set_e1000_register(E1000_RDT, RDLEN);
 	init_e1000_rctl();
 }
 
