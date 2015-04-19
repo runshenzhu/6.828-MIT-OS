@@ -10,6 +10,7 @@
 
 typedef uint32_t e1000_status;  
 int attach_e1000(struct pci_func *pcif);
+int e1000_transmit(const char *data, int size);
 
 /* 128 bit */
 struct tx_desc{

@@ -18,6 +18,7 @@ enum {
 	SYS_ipc_try_send,
 	SYS_ipc_recv,
 	SYS_time_msec,
+	SYS_net_try_transmit,		//15
 	NSYSCALLS
 };
 
@@ -38,6 +39,7 @@ static char *syscall_name_table[] = {
 	"SYS_ipc_try_send",
 	"SYS_ipc_recv",
 	"SYS_time_msec",
+	"SYS_net_try_transmit",		//15
 	"NSYSCALLS"
 };
 

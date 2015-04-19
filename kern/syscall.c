@@ -12,6 +12,7 @@
 #include <kern/console.h>
 #include <kern/sched.h>
 #include <kern/time.h>
+#include <kern/e1000.h>
 
 /* print syscall's name */
 inline char* get_syscall_name(uint32_t syscallno) {
@@ -468,6 +469,13 @@ sys_time_msec(void)
 	return time_msec();
 }
 
+static int sys_net_try_transmit (const char *s, int len){
+	// Check that the user has permission to read memory [s, s+len).
+	// Destroy the environment if not.
+	user_mem_assert(curenv, (void *)s, len, PTE_U|PTE_P);
+	return e1000_transmit(s, len);
+}
+
 // Dispatches to the correct kernel function, passing the arguments.
 int32_t
 syscall(uint32_t syscallno, uint32_t a1, uint32_t a2, uint32_t a3, uint32_t a4, uint32_t a5)
@@ -558,6 +566,10 @@ syscall(uint32_t syscallno, uint32_t a1, uint32_t a2, uint32_t a3, uint32_t a4, 
 	}
 	case SYS_time_msec: {
 		r = sys_time_msec();
+		break;
+	}
+	case SYS_net_try_transmit: {
+		r = sys_net_try_transmit((char *)a1, a2);
 		break;
 	}
 	default:
