@@ -1,5 +1,6 @@
 #include <kern/e1000.h>
 #include <kern/pmap.h>
+#include <kern/env.h>
 #include <inc/stdio.h>
 #include <inc/assert.h>
 #include <inc/error.h>
@@ -13,7 +14,7 @@ e1000_status status;
 // transmit and receive rings
 volatile struct tx_desc *tx_desc_rings;
 char tx_buff[TDLEN][TX_BUFF_SIZE];
-struct tx_desc *rx_desc_rings;
+struct rx_desc *rx_desc_rings;
 char rx_buff[RDLEN][RX_BUFF_SIZE];
 
 static inline uint32_t get_e1000_register(unsigned reg_inx){
@@ -49,6 +50,34 @@ static void check_e1000(struct pci_func *pcif, int is_enable){
 	assert(get_e1000_register(E1000_MTA) == 0);
 	assert(get_e1000_register(E1000_MTA + 4) == 0);
 	assert(get_e1000_register(E1000_MTA + 8) == 0);
+	assert(sizeof(struct rx_desc) == sizeof(struct tx_desc));
+	assert(RDLEN >= 128);
+}
+/**************** receive ****************/
+static inline int get_rx_ring_tail(){
+	int tail = get_e1000_register(E1000_RDT);
+	tail = tail % RDLEN;
+	return tail;
+}
+
+int e1000_receive(char *s) {
+	static int real_tail = 0;
+	//int tail = get_rx_ring_tail();
+	int tail = real_tail;
+	//cprintf("tail is %d\n", tail);
+	struct rx_desc *desc = &rx_desc_rings[tail];
+	if(desc->status.dd == 0){
+		return -E_NO_RX;
+	}
+	char *buff = (char *)KADDR((uint32_t)desc->addr);
+	uint32_t length = desc->length;
+
+	memmove(s, buff, length);
+	desc->status.dd = 0;
+	set_e1000_register(E1000_RDT, tail);
+	real_tail = (tail + 1) % RDLEN;
+	//cprintf("real_tail is %d tail is %d head is %d\n", real_tail, get_e1000_register(E1000_RDT), get_e1000_register(E1000_RDH));
+	return length;
 }
 /**************** transmit ****************/
 static inline int get_tx_ring_tail() {
@@ -76,14 +105,15 @@ static int e1000_transmit_check_free(int size){
 
 int e1000_transmit(const char *data, int size){
 	int i = 0;
+	/*
 	while(i++ < TRANS_CHECK_TIME){
 		if(e1000_transmit_check_free(size))
 			break;
 	}
+	*/
 
 	if(!e1000_transmit_check_free(size))
 		return -E_NO_TX;
-
 	int tail = get_tx_ring_tail();
 	struct tx_desc *desc;
 	int size_want_to_trans = size;
@@ -178,11 +208,11 @@ static inline void init_e1000_rctl(){
 }
 
 static inline void init_e1000_rx(){
-	//set_e1000_register(E1000_RCTL, 0);
+	set_e1000_register(E1000_RCTL, 0);
 	struct PageInfo *pp = page_alloc(ALLOC_ZERO);
 	assert(pp);
 	pp->pp_ref++;
-	rx_desc_rings = (struct tx_desc *)page2kva(pp);
+	rx_desc_rings = (struct rx_desc *)page2kva(pp);
 	set_e1000_register(E1000_RDBAL, page2pa(pp));
 	set_e1000_register(E1000_RDBAH, 0);
 	int i;

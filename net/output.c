@@ -26,6 +26,9 @@ output(envid_t ns_envid)
 		assert(req == NSREQ_OUTPUT);
 		int r;
 		while( (r = sys_net_try_transmit(nsipcbuf.pkt.jp_data, nsipcbuf.pkt.jp_len)) == -E_NO_TX);
+		if( r < 0) {
+			panic("sys_net_try_transmit: %e", r);
+		}
 		assert(r == nsipcbuf.pkt.jp_len);
 		sys_page_unmap(0, &nsipcbuf);
 	}

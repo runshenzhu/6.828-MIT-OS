@@ -28,6 +28,7 @@ enum {
 
 	//E1000 error
 	E_NO_TX ,
+	E_NO_RX ,
 	MAXERROR
 };
 

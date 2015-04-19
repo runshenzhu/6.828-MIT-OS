@@ -410,7 +410,7 @@ sys_ipc_try_send(envid_t envid, uint32_t value, void *srcva, unsigned perm)
 		}
 
 		
-		assert( !((uintptr_t)dstva % PGSIZE));
+		assert(!((uintptr_t)dstva % PGSIZE));
 		r = page_insert(recv_env->env_pgdir, pp, (void *)dstva, perm);
 		if(r < 0) {
 			return -E_NO_MEM;
@@ -469,11 +469,18 @@ sys_time_msec(void)
 	return time_msec();
 }
 
-static int sys_net_try_transmit (const char *s, int len){
+static int sys_net_try_transmit(const char *s, int len){
 	// Check that the user has permission to read memory [s, s+len).
 	// Destroy the environment if not.
 	user_mem_assert(curenv, (void *)s, len, PTE_U|PTE_P);
 	return e1000_transmit(s, len);
+}
+
+static int sys_net_try_receive(char *s){
+	//extern RX_BUFF_SIZE;
+	user_mem_assert(curenv, (void *)s, MIN_RECEIVE_BUFF_SIZE, PTE_U|PTE_P|PTE_W);
+	//cprintf("in sys_net_try_receive\n");
+	return e1000_receive(s);
 }
 
 // Dispatches to the correct kernel function, passing the arguments.
@@ -570,6 +577,10 @@ syscall(uint32_t syscallno, uint32_t a1, uint32_t a2, uint32_t a3, uint32_t a4, 
 	}
 	case SYS_net_try_transmit: {
 		r = sys_net_try_transmit((char *)a1, a2);
+		break;
+	}
+	case SYS_net_try_receive: {
+		r = sys_net_try_receive((char *)a1);
 		break;
 	}
 	default:

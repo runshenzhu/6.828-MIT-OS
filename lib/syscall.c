@@ -126,3 +126,6 @@ sys_time_msec(void)
 int sys_net_try_transmit(const char *s, size_t len) {
 	return syscall(SYS_net_try_transmit, 0, (uint32_t)s, len, 0, 0, 0);
 }
+int sys_net_try_receive(char *s) {
+	return syscall(SYS_net_try_receive, 0, (uint32_t)s, 0, 0, 0, 0);
+}
