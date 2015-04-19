@@ -7,11 +7,11 @@
 
 #define E1000_VENDOR_ID_82540EM	    0x8086
 #define E1000_DEV_ID_82540EM		0x100E
-
+#define MIN_RECEIVE_BUFF_SIZE		RX_BUFF_SIZE
 typedef uint32_t e1000_status;  
 int attach_e1000(struct pci_func *pcif);
 int e1000_transmit(const char *data, int size);
-
+int e1000_receive(char *s);
 /* transmit desc 128 bits */
 struct tx_desc{
 	uint64_t addr;
@@ -55,7 +55,7 @@ struct rx_desc{
 		unsigned pif : 1;
 	}__attribute__((__packed__))status;
 	uint8_t errors;
-	uint64_t special;
+	uint16_t special;
 }__attribute__((__packed__));
 //#define TDLEN  			(PGSIZE/sizeof(struct tx_desc))
 #define TDLEN 64
