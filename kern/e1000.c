@@ -9,8 +9,12 @@
 #define TRANS_CHECK_TIME 1000
 volatile uint32_t e1000_bar0;
 e1000_status status;
+
+// transmit and receive rings
 volatile struct tx_desc *tx_desc_rings;
 char tx_buff[TDLEN][TX_BUFF_SIZE];
+struct tx_desc *rx_desc_rings;
+char rx_buff[RDLEN][RX_BUFF_SIZE];
 
 static inline uint32_t get_e1000_register(unsigned reg_inx){
 	return *(uint32_t *)(e1000_bar0 + reg_inx);
@@ -42,6 +46,9 @@ static void check_e1000(struct pci_func *pcif, int is_enable){
 	assert(get_e1000_register(E1000_TDT) == 0);
 	assert(tx_desc_rings);
 	assert((uint32_t)tx_desc_rings % PGSIZE == 0);
+	assert(get_e1000_register(E1000_MTA) == 0);
+	assert(get_e1000_register(E1000_MTA + 4) == 0);
+	assert(get_e1000_register(E1000_MTA + 8) == 0);
 }
 /**************** transmit ****************/
 static inline int get_tx_ring_tail() {
@@ -129,7 +136,7 @@ static inline void init_e1000_tipg(){
 	set_e1000_register(E1000_TIPG, tipg_value);
 }
 
-static inline void init_e1000_tdba(){
+static inline void init_e1000_tx(){
 	//cprintf("debug begin\n");
 	struct PageInfo *pp = page_alloc(ALLOC_ZERO);
 	assert(pp);
@@ -143,16 +150,62 @@ static inline void init_e1000_tdba(){
 		tx_desc_rings[i].cmd.rs = 1;
 		tx_desc_rings[i].status.dd = 1;
 	}
-}
 
-static void init_e1000() {
-	init_e1000_tdba();
 	/* 大坑!!! 存的是字节数 没好好看文档 T_T */
 	set_e1000_register(E1000_TDLEN, TDLEN * sizeof(struct tx_desc));
 	set_e1000_register(E1000_TDH, 0);
 	set_e1000_register(E1000_TDT, 0);
 	init_e1000_tctl();
 	init_e1000_tipg();
+}
+
+static inline void init_e1000_rctl(){
+	uint32_t rctl_value = 0;
+	//receiver Enable
+	rctl_value |= E1000_RCTL_EN;
+	// Long Packet Enable
+	rctl_value |= E1000_RCTL_LPE;
+	// Loop back Mode (RCTL.LBM) should be set to 00b for normal operation
+	rctl_value |= E1000_RCTL_LBM_NO;
+	// Set the Broadcast Accept Mode
+	rctl_value |= E1000_RCTL_BAM;
+	// Configurethe Receive Buffer Size
+	rctl_value |= E1000_RCTL_BSEX;
+	rctl_value |= E1000_RCTL_SZ_16384;
+	// Set the Strip Ethernet CRC bit
+	rctl_value |= E1000_RCTL_SECRC;
+	set_e1000_register(E1000_RCTL, rctl_value);
+}
+
+static inline void init_e1000_rx(){
+	//set_e1000_register(E1000_RCTL, 0);
+	struct PageInfo *pp = page_alloc(ALLOC_ZERO);
+	assert(pp);
+	pp->pp_ref++;
+	rx_desc_rings = (struct tx_desc *)page2kva(pp);
+	set_e1000_register(E1000_RDBAL, page2pa(pp));
+	set_e1000_register(E1000_RDBAH, 0);
+	int i;
+	for(i = 0; i < RDLEN; i++) {
+		rx_desc_rings[i].addr = PADDR(rx_buff[i]);
+	}
+	// 52:54:00:12:34:56
+	// Receive Address Register
+	set_e1000_register(E1000_RAL0, 0x12005452);
+	set_e1000_register(E1000_RAH0, (0x00005634 | E1000_RAH_AV));
+	// Set the Receive Descriptor Length
+	set_e1000_register(E1000_RDLEN, RDLEN * sizeof(struct rx_desc));
+
+	//Head should point to the first valid receive descriptor in the descriptor ring and 
+	//tail should point to one descriptor beyond the last valid descriptor in the descriptor ring.
+	set_e1000_register(E1000_RDH, 0);
+	set_e1000_register(E1000_RDT, RDLEN - 1);
+	init_e1000_rctl();
+}
+
+static void init_e1000() {
+	init_e1000_rx();
+	init_e1000_tx();
 	cprintf("e1000 init successed!\n");
 }
 
